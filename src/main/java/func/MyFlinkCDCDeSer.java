@@ -36,7 +36,6 @@ public class MyFlinkCDCDeSer implements DebeziumDeserializationSchema<String> {
         //TODO 3.提取表名
         String tableName = split[2];
 
-
         Struct value = (Struct) sourceRecord.value();
         //TODO 4.获取after数据
         Struct valueStruct = value.getStruct("after");

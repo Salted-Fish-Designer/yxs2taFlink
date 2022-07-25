@@ -1,11 +1,10 @@
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
-import func.MyUtil;
-import io.debezium.data.Json;
 import org.apache.flink.api.common.state.BroadcastState;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.state.ReadOnlyBroadcastState;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.co.BroadcastProcessFunction;
 import org.apache.flink.util.Collector;
 
@@ -22,9 +21,13 @@ public class CastProcessFunction extends BroadcastProcessFunction<String, String
         this.mapStateDescriptor = mapStateDescriptor;
     }
 
+
     @Override
-    public void processBroadcastElement(String value, BroadcastProcessFunction<String, String, String>.Context ctx, Collector<String> out) throws Exception {
+    public void processBroadcastElement(String value, Context ctx, Collector<String> out) throws Exception {
         BroadcastState<String, String> broadcastState = ctx.getBroadcastState(mapStateDescriptor);
+
+        System.out.println("广播流内容"+value);
+
         //后续需要从value中提取事件名，将事件名作为key put进广播状态中。后续提取时，对应提取相应事件名的配置。
         JSONObject jsonObject = JSON.parseObject(value);
         JSONObject after = jsonObject.getJSONObject("after");
@@ -32,21 +35,19 @@ public class CastProcessFunction extends BroadcastProcessFunction<String, String
         String event_name = after.getString("event_name");
         String ta_format = after.getString("ta_format");
 
-        broadcastState.put(event_name,ta_format);
-//        broadcastState.put("match_info", after.getString("ta_format"));
-
+        broadcastState.put(event_name, ta_format);
     }
 
     @Override
-    public void processElement(String value, BroadcastProcessFunction<String, String, String>.ReadOnlyContext ctx, Collector<String> out) throws Exception {
-
+    public void processElement(String value, ReadOnlyContext ctx, Collector<String> out) throws Exception {
         ReadOnlyBroadcastState<String, String> broadcastState = ctx.getBroadcastState(mapStateDescriptor);
 
         JSONObject jsonObject = JSON.parseObject(value);
         String event_name = jsonObject.getString("_eventname");
 
-        String conf = broadcastState.get(event_name);
-        JSONObject controlJSON = JSON.parseObject(conf);
+        String ta_conf = broadcastState.get(event_name);
+
+        JSONObject controlJSON = JSON.parseObject(ta_conf);
         //将kafka中的数据转成JSONObject
         JSONObject valueJSON = JSON.parseObject(value);
 
@@ -54,7 +55,7 @@ public class CastProcessFunction extends BroadcastProcessFunction<String, String
         JSONObject resultJson = new JSONObject();
         JSONObject property = new JSONObject();
 
-        if (conf != null) {
+        if (ta_conf != null) {
             //获取映射后的字段名集合
             Set<String> afterKeys = controlJSON.keySet();
             //遍历映射后的字段名，按照数数规则处理格式
@@ -73,6 +74,9 @@ public class CastProcessFunction extends BroadcastProcessFunction<String, String
                 }
             }
             resultJson.put("properties",property);
+        } else {
+            //从内存的Map中尝试获取数据
+            System.out.println(event_name + "不存在！");
         }
 
         out.collect(resultJson.toString());
