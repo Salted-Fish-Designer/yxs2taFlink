@@ -1,6 +1,7 @@
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
+import func.MyUtil;
 import org.apache.flink.api.common.state.BroadcastState;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.state.ReadOnlyBroadcastState;
@@ -10,6 +11,7 @@ import org.apache.flink.util.Collector;
 
 import java.math.BigInteger;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.Set;
 
@@ -107,6 +109,27 @@ public class CastProcessFunction extends BroadcastProcessFunction<String, String
             Date time = valueJSON.getDate(beforeKey);
             String afterValue = sdf.format(time);
             jsonObject.put(afterKey, afterValue);
+        }else if ("Array".equals(afterType)){
+            //Array有两种格式，一种以','分隔，一种为JSONarray格式
+            String str = valueJSON.getString(beforeKey);
+            if (MyUtil.isJSON(str)){
+                JSONObject json = JSON.parseObject(str);
+                JSONArray jsonArray = json.getJSONArray(beforeKey);
+                ArrayList<String> afterValue = new ArrayList<>();
+                for (int i = 0; i < jsonArray.size(); i++) {
+                    String str1 = jsonArray.getString(i);
+                    String str2 = str1.substring(1, str1.length() - 1);
+                    String value = str2.split(":")[1];
+                    afterValue.add(value);
+                }
+                jsonObject.put(afterKey,afterValue);
+            }else {
+                String substring = str.substring(0, str.length() - 1);
+                String[] afterValue = substring.split(",");
+                jsonObject.put(afterKey,afterValue);
+            }
+        }else if ("JSONARRAY".equals(afterType)){
+
         }
     }
 

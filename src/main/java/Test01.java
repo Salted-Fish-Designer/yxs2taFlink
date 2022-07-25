@@ -7,6 +7,7 @@ import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Date;
 
 public class Test01 {
@@ -15,17 +16,25 @@ public class Test01 {
 
         JSONObject jsonObject1 = JSON.parseObject("{\"_accountid\":\"1_1024\",\"_app\":\"yxs_test\",\"_distinctid\":\"1_1024\",\"_eventname\":\"match_info\",\"_ip\":\"192.168.2.17\",\"_keyid\":\"KuqeSSvw\",\"_time\":1658249302771,\"ad_channel\":\"\",\"app_plat\":1,\"backflow_channel\":\"\",\"backflow_ten_day_channel\":\"\",\"config_group\":1,\"device_os\":\"\",\"group_id\":1,\"hero_num\":116,\"honour\":1036,\"level\":188,\"match_teammate\":0,\"mode\":4,\"number\":11,\"rating_2v2\":1000,\"score\":-4,\"share_src_ad_channel\":\"\",\"time\":\"1658220502\",\"total_pay_money\":0,\"uin\":1024}");
 
-        Date time = jsonObject1.getDate("_time");
-        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
-        String format_time = sdf.format(time);
-
-        System.out.println(format_time);
+        String str = "{\"teammate_skill\":[{\"skill_id\":818},{\"skill_id\":933},{\"skill_id\":2017}]}";
+        String beforeKey = "teammate_skill";
 
 
-        boolean json2 = isJSON("{\"#account_id\":[\"_accountid\", \"String\"]}");
-        System.out.println(json2);
+        JSONObject json = JSON.parseObject(str);
+        JSONArray jsonArray = json.getJSONArray(beforeKey);
+        System.out.println(str);
+        System.out.println(jsonArray.size());
 
-        System.out.println(jsonObject.toString().length());
+        ArrayList<String> strings = new ArrayList<>();
+        for (int i = 0; i < jsonArray.size(); i++) {
+            String str1 = jsonArray.getString(i);
+            String str2 = str1.substring(1, str1.length() - 1);
+            String value = str2.split(":")[1];
+            System.out.println(value);
+            strings.add(value);
+        }
+        System.out.println(strings);
+
 
     }
 
