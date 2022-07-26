@@ -22,37 +22,29 @@ public class CastProcessFunction extends BroadcastProcessFunction<String, String
         this.mapStateDescriptor = mapStateDescriptor;
     }
 
-
     @Override
     public void processBroadcastElement(String value, Context ctx, Collector<String> out) throws Exception {
         BroadcastState<String, String> broadcastState = ctx.getBroadcastState(mapStateDescriptor);
-
-        System.out.println("广播流内容"+value);
-
-        //后续需要从value中提取事件名，将事件名作为key put进广播状态中。后续提取时，对应提取相应事件名的配置。
+        //将事件名作为key put进广播状态中。后续提取时，对应提取相应事件名的配置。
         JSONObject jsonObject = JSON.parseObject(value);
         JSONObject after = jsonObject.getJSONObject("after");
-
         String event_name = after.getString("event_name");
         String ta_format = after.getString("ta_format");
-
         broadcastState.put(event_name, ta_format);
     }
 
     @Override
     public void processElement(String value, ReadOnlyContext ctx, Collector<String> out) throws Exception {
-        ReadOnlyBroadcastState<String, String> broadcastState = ctx.getBroadcastState(mapStateDescriptor);
-
-        JSONObject jsonObject = JSON.parseObject(value);
-        String event_name = jsonObject.getString("_eventname");
-
-        String ta_conf = broadcastState.get(event_name);
-
-        JSONObject controlJSON = JSON.parseObject(ta_conf);
-        //将kafka中的数据转成JSONObject
+        //将kafka中的数据的事件名
         JSONObject valueJSON = JSON.parseObject(value);
+        String event_name = valueJSON.getString("_eventname");
 
-        //建立一个新的JSONObject，将改后的信息put进去。
+        //获取广播流中的配置
+        ReadOnlyBroadcastState<String, String> broadcastState = ctx.getBroadcastState(mapStateDescriptor);
+        String ta_conf = broadcastState.get(event_name);
+        JSONObject controlJSON = JSON.parseObject(ta_conf);
+
+        //建立一个新的JSONObject，存储修改后信息
         JSONObject resultJson = new JSONObject();
         JSONObject property = new JSONObject();
 
@@ -65,14 +57,13 @@ public class CastProcessFunction extends BroadcastProcessFunction<String, String
                 JSONArray controlArray = controlJSON.getJSONArray(afterKey);
 
                 if (afterKey.contains("#")){
-                    castType(resultJson,valueJSON,afterKey,controlArray);
+                    castFormat(resultJson,valueJSON,afterKey,controlArray);
                 } else {
-                    castType(property,valueJSON,afterKey,controlArray);
+                    castFormat(property,valueJSON,afterKey,controlArray);
                 }
             }
             resultJson.put("properties",property);
         } else {
-            //从内存的Map中尝试获取数据
             System.out.println(event_name + "不存在！");
         }
 
@@ -87,7 +78,7 @@ public class CastProcessFunction extends BroadcastProcessFunction<String, String
      * @param afterKey : 映射后的字段
      * @param controlArray : 控制数列，包含映射前字段，映射后的类型，对象组类型
      */
-    private void castType(JSONObject jsonObject, JSONObject valueJSON, String afterKey, JSONArray controlArray){
+    private void castFormat(JSONObject jsonObject, JSONObject valueJSON, String afterKey, JSONArray controlArray){
         //获取映射前字段
         String beforeKey = controlArray.getString(0);
         //获取映射后字段类型
@@ -141,12 +132,19 @@ public class CastProcessFunction extends BroadcastProcessFunction<String, String
                 Set<String> afterSubkeys = after_before_json.keySet();
                 String[] afterSubKeyArray = afterSubkeys.toArray(new String[afterSubkeys.size()]);
 
+                for (String s : afterSubKeyArray) {
+                    System.out.println(s);
+                }
+
                 //获取映射后子字段类型
                 String subType = controlArray.getString(3);
                 String[] subTypeArray = subType.split(",");
 
                 JSONObject subResult = new JSONObject();
                 //根据子字段的类型获取值
+
+
+
                 for (int i = 0; i < afterSubKeyArray.length; i++) {
                     if ("String".equals(subTypeArray[i])) {
                         String afterValue = valueJSON.getString(after_before_json.getString(afterSubKeyArray[i]));
@@ -154,6 +152,14 @@ public class CastProcessFunction extends BroadcastProcessFunction<String, String
                     } else if ("Number".equals(subTypeArray[i])){
                         BigInteger afterValue = valueJSON.getBigInteger(after_before_json.getString(afterSubKeyArray[i]));
                         subResult.put(afterSubKeyArray[i],afterValue);
+                    } else if ("CHANGETYPE".equals(subTypeArray[i])){
+                        BigInteger old_cnt = valueJSON.getBigInteger("old_cnt");
+                        BigInteger new_cnt = valueJSON.getBigInteger("new_cnt");
+                        if (new_cnt.compareTo(old_cnt)==1){
+                            subResult.put(afterSubKeyArray[i],"增加");
+                        }else {
+                            subResult.put(afterSubKeyArray[i],"减少");
+                        }
                     }
                 }
                 jsonObject.put(afterKey,subResult);
