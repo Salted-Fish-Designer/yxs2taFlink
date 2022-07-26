@@ -5,7 +5,6 @@ import func.MyUtil;
 import org.apache.flink.api.common.state.BroadcastState;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.state.ReadOnlyBroadcastState;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.co.BroadcastProcessFunction;
 import org.apache.flink.util.Collector;
 
@@ -64,15 +63,11 @@ public class CastProcessFunction extends BroadcastProcessFunction<String, String
             for (String afterKey : afterKeys) {
                 //获取数数格式信息，包含原字段名、映射后类型、
                 JSONArray controlArray = controlJSON.getJSONArray(afterKey);
-                //获取映射前字段
-                String beforeKey = controlArray.getString(0);
-                //获取映射后字段类型
-                String afterType = controlArray.getString(1);
 
                 if (afterKey.contains("#")){
-                    castType(resultJson,valueJSON,beforeKey,afterKey,afterType);
+                    castType(resultJson,valueJSON,afterKey,controlArray);
                 } else {
-                    castType(property,valueJSON,beforeKey,afterKey,afterType);
+                    castType(property,valueJSON,afterKey,controlArray);
                 }
             }
             resultJson.put("properties",property);
@@ -89,11 +84,15 @@ public class CastProcessFunction extends BroadcastProcessFunction<String, String
      * 按数数要求转换类型
      * @param jsonObject : 存放转换后结果的容器JSON (映射后的JSON)
      * @param valueJSON : 映射前的JSON
-     * @param beforeKey : 映射前的字段
      * @param afterKey : 映射后的字段
-     * @param afterType : 映射后的类型
+     * @param controlArray : 控制数列，包含映射前字段，映射后的类型，对象组类型
      */
-    private void castType(JSONObject jsonObject, JSONObject valueJSON, String beforeKey, String afterKey, String afterType){
+    private void castType(JSONObject jsonObject, JSONObject valueJSON, String afterKey, JSONArray controlArray){
+        //获取映射前字段
+        String beforeKey = controlArray.getString(0);
+        //获取映射后字段类型
+        String afterType = controlArray.getString(1);
+
         if ("String".equals(afterType)){
             //按指定类型提取字段值
             String afterValue = valueJSON.getString(beforeKey);
@@ -115,21 +114,51 @@ public class CastProcessFunction extends BroadcastProcessFunction<String, String
             if (MyUtil.isJSON(str)){
                 JSONObject json = JSON.parseObject(str);
                 JSONArray jsonArray = json.getJSONArray(beforeKey);
-                ArrayList<String> afterValue = new ArrayList<>();
+                ArrayList<String> afterArray = new ArrayList<>();
                 for (int i = 0; i < jsonArray.size(); i++) {
                     String str1 = jsonArray.getString(i);
                     String str2 = str1.substring(1, str1.length() - 1);
                     String value = str2.split(":")[1];
-                    afterValue.add(value);
+                    afterArray.add(value);
                 }
-                jsonObject.put(afterKey,afterValue);
+                jsonObject.put(afterKey,afterArray);
             }else {
                 String substring = str.substring(0, str.length() - 1);
-                String[] afterValue = substring.split(",");
-                jsonObject.put(afterKey,afterValue);
+                String[] afterArray = substring.split(",");
+                jsonObject.put(afterKey,afterArray);
             }
         }else if ("JSONARRAY".equals(afterType)){
+            String jsonArrayType = controlArray.getString(2);
+            if ("0".equals(jsonArrayType)){
+                JSONObject beforeJSON = valueJSON.getJSONObject(beforeKey);
+                JSONArray jsonArray = beforeJSON.getJSONArray(beforeKey);
+                jsonObject.put(afterKey,jsonArray);
+            } else if ("1".equals(jsonArrayType)){
+                //此处的 beforeKey 为"映射后子列名:映射前子列名"
+                JSONObject after_before_json = JSON.parseObject(beforeKey);
 
+                //获取映射后子字段名，数组
+                Set<String> afterSubkeys = after_before_json.keySet();
+                String[] afterSubKeyArray = afterSubkeys.toArray(new String[afterSubkeys.size()]);
+
+                //获取映射后子字段类型
+                String subType = controlArray.getString(3);
+                String[] subTypeArray = subType.split(",");
+
+                JSONObject subResult = new JSONObject();
+                //根据子字段的类型获取值
+                for (int i = 0; i < afterSubKeyArray.length; i++) {
+                    if ("String".equals(subTypeArray[i])) {
+                        String afterValue = valueJSON.getString(after_before_json.getString(afterSubKeyArray[i]));
+                        subResult.put(afterSubKeyArray[i],afterValue);
+                    } else if ("Number".equals(subTypeArray[i])){
+                        BigInteger afterValue = valueJSON.getBigInteger(after_before_json.getString(afterSubKeyArray[i]));
+                        subResult.put(afterSubKeyArray[i],afterValue);
+                    }
+                }
+                jsonObject.put(afterKey,subResult);
+
+            }
         }
     }
 
