@@ -17,30 +17,12 @@ public class Test01 {
 
         JSONObject jsonObject1 = JSON.parseObject("{\"_accountid\":\"1_1024\",\"_app\":\"yxs_test\",\"_distinctid\":\"1_1024\",\"_eventname\":\"match_info\",\"_ip\":\"192.168.2.17\",\"_keyid\":\"KuqeSSvw\",\"_time\":1658249302771,\"ad_channel\":\"\",\"app_plat\":1,\"backflow_channel\":\"\",\"backflow_ten_day_channel\":\"\",\"config_group\":1,\"device_os\":\"\",\"group_id\":1,\"hero_num\":116,\"honour\":1036,\"level\":188,\"match_teammate\":0,\"mode\":4,\"number\":11,\"rating_2v2\":1000,\"score\":-4,\"share_src_ad_channel\":\"\",\"time\":\"1658220502\",\"total_pay_money\":0,\"uin\":1024}");
 
-        String beforeKey = "{\n" +
-                "            \"change_type\":[\"\", \"CHANGETYPE\"],\n" +
-                "            \"item_type\":[\"item_type\", \"String\"],\n" +
-                "            \"item_id\":[\"item_id\", \"String\"],\n" +
-                "            \"old_expire\":[\"old_expire\", \"Number\"],\n" +
-                "            \"new_expire\":[\"new_expire\", \"Number\"],\n" +
-                "            \"before_num\":[\"old_cnt\", \"Number\"],\n" +
-                "            \"after_num\":[\"new_cnt\", \"Number\"],\n" +
-                "            \"change_num\":[\"change_cnt\", \"Number\"],\n" +
-                "        }";
-
-        JSONObject after_before_json = JSON.parseObject(beforeKey);
-
-        //建立一个新的JSONObject，存储修改后信息
-        JSONObject resultSubJson = new JSONObject();
-        //获取映射后子字段名
-        Set<String> afterSubkeys = after_before_json.keySet();
-        //遍历映射后的子字段名，按照数数规则处理格式
 
 
-
-
-        //获取映射后子字段类型
-
+        String str = "{\"time\":\"1642654123000\"}";
+        JSONObject jsonObject2 = JSON.parseObject(str);
+        Date time = jsonObject2.getDate("time");
+        System.out.println(time);
 
 
     }

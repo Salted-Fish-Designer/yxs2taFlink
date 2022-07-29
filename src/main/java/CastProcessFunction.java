@@ -72,11 +72,11 @@ public class CastProcessFunction extends BroadcastProcessFunction<String, String
 
 
     /**
-     * 按数数要求转换类型
+     * 按数数要求转换格式
      * @param jsonObject : 存放转换后结果的容器JSON (映射后的JSON)
      * @param valueJSON : 映射前的JSON
      * @param afterKey : 映射后的字段
-     * @param controlArray : 控制数列，包含映射前字段，映射后的类型，对象组类型
+     * @param controlArray : 控制数组，包含映射前字段，映射后的类型，对象组类型
      */
     private void castFormat(JSONObject jsonObject, JSONObject valueJSON, String afterKey, JSONArray controlArray){
         //获取映射前字段
@@ -92,6 +92,9 @@ public class CastProcessFunction extends BroadcastProcessFunction<String, String
         }else if ("Number".equals(afterType)){
             BigInteger afterValue = valueJSON.getBigInteger(beforeKey);
             jsonObject.put(afterKey, afterValue);
+        }else if ("Boolean".equals(afterType)){
+            boolean afterValue = valueJSON.getBooleanValue(beforeKey);
+            jsonObject.put(afterKey,afterValue);
         }else if ("Zone".equals(afterType)){
             jsonObject.put(afterKey, 8);
         }else if ("Date".equals(afterType)){
@@ -125,40 +128,34 @@ public class CastProcessFunction extends BroadcastProcessFunction<String, String
                 JSONArray jsonArray = beforeJSON.getJSONArray(beforeKey);
                 jsonObject.put(afterKey,jsonArray);
             } else if ("1".equals(jsonArrayType)){
-                //此处的 beforeKey 为"映射后子列名:映射前子列名"
-                JSONObject after_before_json = JSON.parseObject(beforeKey);
-
+                //此处的 beforeKey 为 {"映射后子列名":["映射前子列名","映射后类型"]}
+                JSONObject subControlJson = JSON.parseObject(beforeKey);
                 //获取映射后子字段名，数组
-                Set<String> afterSubkeys = after_before_json.keySet();
-                String[] afterSubKeyArray = afterSubkeys.toArray(new String[afterSubkeys.size()]);
-
-                for (String s : afterSubKeyArray) {
-                    System.out.println(s);
-                }
-
-                //获取映射后子字段类型
-                String subType = controlArray.getString(3);
-                String[] subTypeArray = subType.split(",");
-
+                Set<String> subAfterKeys = subControlJson.keySet();
+                //创建子JSON容器
                 JSONObject subResult = new JSONObject();
                 //根据子字段的类型获取值
-
-
-
-                for (int i = 0; i < afterSubKeyArray.length; i++) {
-                    if ("String".equals(subTypeArray[i])) {
-                        String afterValue = valueJSON.getString(after_before_json.getString(afterSubKeyArray[i]));
-                        subResult.put(afterSubKeyArray[i],afterValue);
-                    } else if ("Number".equals(subTypeArray[i])){
-                        BigInteger afterValue = valueJSON.getBigInteger(after_before_json.getString(afterSubKeyArray[i]));
-                        subResult.put(afterSubKeyArray[i],afterValue);
-                    } else if ("CHANGETYPE".equals(subTypeArray[i])){
+                for (String subAfterKey : subAfterKeys) {
+                    JSONArray subControlArray = subControlJson.getJSONArray(subAfterKey);
+                    if ("String".equals(subControlArray.getString(1))){
+                        String subBeforeKey = subControlArray.getString(0);
+                        String subAfterValue = valueJSON.getString(subBeforeKey);
+                        subResult.put(subAfterKey, subAfterValue);
+                    } else if ("Number".equals(subControlArray.getString(1))){
+                        String subBeforeKey = subControlArray.getString(0);
+                        BigInteger subAfterValue = valueJSON.getBigInteger(subBeforeKey);
+                        subResult.put(subAfterKey, subAfterValue);
+                    } else if ("Boolean".equals(subControlArray.getString(1))){
+                        String subBeforeKey = subControlArray.getString(0);
+                        boolean subAfterValue = valueJSON.getBooleanValue(subBeforeKey);
+                        subResult.put(subAfterKey, subAfterValue);
+                    } else if ("CHANGETYPE".equals(subControlArray.getString(1))){
                         BigInteger old_cnt = valueJSON.getBigInteger("old_cnt");
                         BigInteger new_cnt = valueJSON.getBigInteger("new_cnt");
                         if (new_cnt.compareTo(old_cnt)==1){
-                            subResult.put(afterSubKeyArray[i],"增加");
+                            subResult.put(subAfterKey,"增加");
                         }else {
-                            subResult.put(afterSubKeyArray[i],"减少");
+                            subResult.put(subAfterKey,"减少");
                         }
                     }
                 }

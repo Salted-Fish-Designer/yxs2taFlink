@@ -58,6 +58,18 @@
 <!--            <version>2.2.1</version>-->
 <!--        </dependency>-->
 
+        <!--以下是flink连接kafka所需依赖-->
+        <dependency>
+            <groupId>org.apache.flink</groupId>
+            <artifactId>flink-connector-kafka_${scala.binary.version}</artifactId>
+            <version>${flink.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.flink</groupId>
+            <artifactId>flink-connector-base</artifactId>
+            <version>${flink.version}</version>
+        </dependency>
+
 
         <!--处理json格式字符串-->
         <dependency>
