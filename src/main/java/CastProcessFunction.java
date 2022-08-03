@@ -35,13 +35,20 @@ public class CastProcessFunction extends BroadcastProcessFunction<String, String
 
     @Override
     public void processElement(String value, ReadOnlyContext ctx, Collector<String> out) throws Exception {
-        //将kafka中的数据的事件名
+        //将kafka中的数据的映射前事件名
         JSONObject valueJSON = JSON.parseObject(value);
-        String event_name = valueJSON.getString("_eventname");
+        String before_event_name = valueJSON.getString("_eventname");
 
-        //获取广播流中的配置
+        //获取广播流中的配置信息，remind事件需要特殊处理
         ReadOnlyBroadcastState<String, String> broadcastState = ctx.getBroadcastState(mapStateDescriptor);
-        String ta_conf = broadcastState.get(event_name);
+        String ta_conf = "";
+        String after_event_name = "";
+        if ("seven_day_remind_back".equals(before_event_name) || "sub_seven_day_remind".equals(before_event_name) || "remind_message_sended".equals(before_event_name)) {
+            after_event_name = "remind";
+            ta_conf = broadcastState.get(after_event_name);
+        } else {
+            ta_conf = broadcastState.get(before_event_name);
+        }
         JSONObject controlJSON = JSON.parseObject(ta_conf);
 
         //建立一个新的JSONObject，存储修改后信息
@@ -55,16 +62,15 @@ public class CastProcessFunction extends BroadcastProcessFunction<String, String
             for (String afterKey : afterKeys) {
                 //获取数数格式信息，包含原字段名、映射后类型、
                 JSONArray controlArray = controlJSON.getJSONArray(afterKey);
-
-                if (afterKey.contains("#")){
-                    castFormat(resultJson,valueJSON,afterKey,controlArray);
+                if (afterKey.contains("#")) {
+                    castFormat(resultJson, valueJSON, afterKey, controlArray, before_event_name, after_event_name);
                 } else {
-                    castFormat(property,valueJSON,afterKey,controlArray);
+                    castFormat(property, valueJSON, afterKey, controlArray, before_event_name, after_event_name);
                 }
             }
-            resultJson.put("properties",property);
+            resultJson.put("properties", property);
         } else {
-            System.out.println(event_name + "不存在！");
+            System.out.println(before_event_name + "不存在！");
         }
 
         out.collect(resultJson.toString());
@@ -73,39 +79,46 @@ public class CastProcessFunction extends BroadcastProcessFunction<String, String
 
     /**
      * 按数数要求转换格式
-     * @param jsonObject : 存放转换后结果的容器JSON (映射后的JSON)
-     * @param valueJSON : 映射前的JSON
-     * @param afterKey : 映射后的字段
-     * @param controlArray : 控制数组，包含映射前字段，映射后的类型，对象组类型
+     *
+     * @param jsonObject        : 存放转换后结果的容器JSON (映射后的JSON)
+     * @param valueJSON         : 映射前的JSON，即kafka中的原数据，用于提取值
+     * @param afterKey          : 映射后的字段
+     * @param controlArray      : 控制数组，包含映射前字段，映射后的类型，对象组类型
+     * @param before_event_name : 映射前事件名称
+     * @param after_event_name  : 映射后事件名称
      */
-    private void castFormat(JSONObject jsonObject, JSONObject valueJSON, String afterKey, JSONArray controlArray){
+    private void castFormat(JSONObject jsonObject, JSONObject valueJSON, String afterKey, JSONArray controlArray, String before_event_name, String after_event_name) {
         //获取映射前字段
         String beforeKey = controlArray.getString(0);
         //获取映射后字段类型
         String afterType = controlArray.getString(1);
 
-        if ("String".equals(afterType)){
-            //按指定类型提取字段值
-            String afterValue = valueJSON.getString(beforeKey);
-            //将处理后的k,v输入新的JSON中
-            jsonObject.put(afterKey, afterValue);
-        }else if ("Number".equals(afterType)){
+        if ("String".equals(afterType)) {
+            if ("remind".equals(after_event_name) && "_eventname".equals(beforeKey)) {
+                jsonObject.put(afterKey, after_event_name);
+            } else {
+                //按指定类型提取字段值
+                String afterValue = valueJSON.getString(beforeKey);
+                //将处理后的k,v输入新的JSON中
+                jsonObject.put(afterKey, afterValue);
+            }
+        } else if ("Number".equals(afterType)) {
             BigInteger afterValue = valueJSON.getBigInteger(beforeKey);
             jsonObject.put(afterKey, afterValue);
-        }else if ("Boolean".equals(afterType)){
+        } else if ("Boolean".equals(afterType)) {
             boolean afterValue = valueJSON.getBooleanValue(beforeKey);
-            jsonObject.put(afterKey,afterValue);
-        }else if ("Zone".equals(afterType)){
+            jsonObject.put(afterKey, afterValue);
+        } else if ("Zone".equals(afterType)) {
             jsonObject.put(afterKey, 8);
-        }else if ("Date".equals(afterType)){
+        } else if ("Date".equals(afterType)) {
             SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
             Date time = valueJSON.getDate(beforeKey);
             String afterValue = sdf.format(time);
             jsonObject.put(afterKey, afterValue);
-        }else if ("Array".equals(afterType)){
+        } else if ("Array".equals(afterType)) {
             //Array有两种格式，一种以','分隔，一种为JSONarray格式
             String str = valueJSON.getString(beforeKey);
-            if (MyUtil.isJSON(str)){
+            if (MyUtil.isJSON(str)) {
                 JSONObject json = JSON.parseObject(str);
                 JSONArray jsonArray = json.getJSONArray(beforeKey);
                 ArrayList<String> afterArray = new ArrayList<>();
@@ -115,54 +128,68 @@ public class CastProcessFunction extends BroadcastProcessFunction<String, String
                     String value = str2.split(":")[1];
                     afterArray.add(value);
                 }
-                jsonObject.put(afterKey,afterArray);
-            }else {
+                jsonObject.put(afterKey, afterArray);
+            } else {
                 String substring = str.substring(0, str.length() - 1);
                 String[] afterArray = substring.split(",");
-                jsonObject.put(afterKey,afterArray);
+                jsonObject.put(afterKey, afterArray);
             }
-        }else if ("JSONARRAY".equals(afterType)){
+        } else if ("JSONARRAY".equals(afterType)) {
             String jsonArrayType = controlArray.getString(2);
-            if ("0".equals(jsonArrayType)){
+            if ("0".equals(jsonArrayType)) {
                 JSONObject beforeJSON = valueJSON.getJSONObject(beforeKey);
                 JSONArray jsonArray = beforeJSON.getJSONArray(beforeKey);
-                jsonObject.put(afterKey,jsonArray);
-            } else if ("1".equals(jsonArrayType)){
+                jsonObject.put(afterKey, jsonArray);
+            } else if ("1".equals(jsonArrayType)) {
                 //此处的 beforeKey 为 {"映射后子列名":["映射前子列名","映射后类型"]}
                 JSONObject subControlJson = JSON.parseObject(beforeKey);
-                //获取映射后子字段名，数组
-                Set<String> subAfterKeys = subControlJson.keySet();
-                //创建子JSON容器
-                JSONObject subResult = new JSONObject();
-                //根据子字段的类型获取值
-                for (String subAfterKey : subAfterKeys) {
-                    JSONArray subControlArray = subControlJson.getJSONArray(subAfterKey);
-                    if ("String".equals(subControlArray.getString(1))){
-                        String subBeforeKey = subControlArray.getString(0);
-                        String subAfterValue = valueJSON.getString(subBeforeKey);
-                        subResult.put(subAfterKey, subAfterValue);
-                    } else if ("Number".equals(subControlArray.getString(1))){
-                        String subBeforeKey = subControlArray.getString(0);
-                        BigInteger subAfterValue = valueJSON.getBigInteger(subBeforeKey);
-                        subResult.put(subAfterKey, subAfterValue);
-                    } else if ("Boolean".equals(subControlArray.getString(1))){
-                        String subBeforeKey = subControlArray.getString(0);
-                        boolean subAfterValue = valueJSON.getBooleanValue(subBeforeKey);
-                        subResult.put(subAfterKey, subAfterValue);
-                    } else if ("CHANGETYPE".equals(subControlArray.getString(1))){
-                        BigInteger old_cnt = valueJSON.getBigInteger("old_cnt");
-                        BigInteger new_cnt = valueJSON.getBigInteger("new_cnt");
-                        if (new_cnt.compareTo(old_cnt)==1){
-                            subResult.put(subAfterKey,"增加");
-                        }else {
-                            subResult.put(subAfterKey,"减少");
-                        }
-                    }
-                }
-                jsonObject.put(afterKey,subResult);
+                JSONObject subResult = subResultFormat(valueJSON, subControlJson);
+                jsonObject.put(afterKey, subResult);
+            }
+        } else if ("REMINDTYPE".equals(afterType)) {
+            jsonObject.put(afterKey, before_event_name);
+        }
+    }
 
+
+    /**
+     * 对JSONARRAY格式中的子字段进行格式化
+     *
+     * @param valueJSON      : 映射前的JSON，即kafka中的原数据，用于提取值
+     * @param subControlJson : 控制子字段格式的JSON字符串
+     * @return 返回处理好格式的子字段JSONObject
+     */
+    private JSONObject subResultFormat(JSONObject valueJSON, JSONObject subControlJson) {
+        //获取映射后子字段名，数组
+        Set<String> subAfterKeys = subControlJson.keySet();
+        //创建子JSON容器
+        JSONObject subResult = new JSONObject();
+        //根据子字段的类型获取值
+        for (String subAfterKey : subAfterKeys) {
+            JSONArray subControlArray = subControlJson.getJSONArray(subAfterKey);
+            if ("String".equals(subControlArray.getString(1))) {
+                String subBeforeKey = subControlArray.getString(0);
+                String subAfterValue = valueJSON.getString(subBeforeKey);
+                subResult.put(subAfterKey, subAfterValue);
+            } else if ("Number".equals(subControlArray.getString(1))) {
+                String subBeforeKey = subControlArray.getString(0);
+                BigInteger subAfterValue = valueJSON.getBigInteger(subBeforeKey);
+                subResult.put(subAfterKey, subAfterValue);
+            } else if ("Boolean".equals(subControlArray.getString(1))) {
+                String subBeforeKey = subControlArray.getString(0);
+                boolean subAfterValue = valueJSON.getBooleanValue(subBeforeKey);
+                subResult.put(subAfterKey, subAfterValue);
+            } else if ("CHANGETYPE".equals(subControlArray.getString(1))) {
+                BigInteger old_cnt = valueJSON.getBigInteger("old_cnt");
+                BigInteger new_cnt = valueJSON.getBigInteger("new_cnt");
+                if (new_cnt.compareTo(old_cnt) == 1) {
+                    subResult.put(subAfterKey, "增加");
+                } else {
+                    subResult.put(subAfterKey, "减少");
+                }
             }
         }
+        return subResult;
     }
 
 
