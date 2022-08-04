@@ -1,6 +1,7 @@
 import com.alibaba.ververica.cdc.connectors.mysql.MySQLSource;
 import com.alibaba.ververica.cdc.connectors.mysql.table.StartupOptions;
 import com.alibaba.ververica.cdc.debezium.DebeziumSourceFunction;
+import func.CastProcessFunction;
 import func.MyFlinkCDCDeSer;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.functions.FilterFunction;
@@ -15,16 +16,12 @@ import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.datastream.*;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer;
-import org.apache.flink.streaming.connectors.kafka.KafkaSerializationSchema;
-import org.apache.kafka.clients.producer.ProducerRecord;
 
-import javax.annotation.Nullable;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.util.Properties;
 
 
-public class LocalTest {
+public class TaFormat {
     public static void main(String[] args) {
         //TODO 0.获取配置信息
         ParameterTool tool = null;
@@ -43,7 +40,7 @@ public class LocalTest {
         String mysql_password = properties.getProperty("mysql.password");
         //获取kafka配置信息
         String kafka_brokers = properties.getProperty("kafka.brokers");
-        String kafka_topic = properties.getProperty("kafka.topic");
+        String kafka_topic_source = properties.getProperty("kafka.topic");
         String kafka_group = properties.getProperty("kafka.group");
         String kafka_topic_ta = properties.getProperty("kafka.topic.ta");
 
@@ -61,7 +58,7 @@ public class LocalTest {
         //从kafka获取数据主流
         KafkaSource<String> source = KafkaSource.<String>builder()
                 .setBootstrapServers(kafka_brokers)
-                .setTopics(kafka_topic)
+                .setTopics(kafka_topic_source)
                 .setGroupId(kafka_group)
                 .setStartingOffsets(OffsetsInitializer.latest())
                 .setValueOnlyDeserializer(new SimpleStringSchema())
@@ -79,7 +76,7 @@ public class LocalTest {
         //通过FlinkCDC读取MySQL，创建控制流controlDS
         DebeziumSourceFunction<String> mySQLSource = MySQLSource.<String>builder()
                 .hostname(mysql_host)
-                .port(3306)
+                .port(Integer.parseInt(mysql_port))
                 .username(mysql_username)
                 .password(mysql_password)
                 .databaseList(mysql_databaseList)
@@ -103,7 +100,7 @@ public class LocalTest {
         resultDS.print("result:");
 
         //TODO 6.将处理后的数据发送会kafka，flink1.13.6 kafka source与sink的写法未统一
-        FlinkKafkaProducer<String> shushu_test = new FlinkKafkaProducer<>("192.168.10.102:9092,192.168.10.103:9092,192.168.10.104:9092", "shushu_test", new SimpleStringSchema());
+        FlinkKafkaProducer<String> shushu_test = new FlinkKafkaProducer<>(kafka_brokers, kafka_topic_ta, new SimpleStringSchema());
         resultDS.addSink(shushu_test);
 
         try {
