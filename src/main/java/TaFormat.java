@@ -24,9 +24,14 @@ import java.util.Properties;
 public class TaFormat {
     public static void main(String[] args) {
         //TODO 0.获取配置信息
+        if (args.length != 1) {
+            System.out.println("args.length must be 1 ,please check it!!");
+            System.exit(-1);
+        }
         ParameterTool tool = null;
+        String propertiesPath = args[0];
         try {
-            tool = ParameterTool.fromPropertiesFile("src/main/resources/application.properties");
+            tool = ParameterTool.fromPropertiesFile(propertiesPath);
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -46,9 +51,9 @@ public class TaFormat {
 
 
         //TODO 1.创建Flink流环境
-//        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         //本地开启WebUI使用环境
-        StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironmentWithWebUI(new Configuration());
+//        StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironmentWithWebUI(new Configuration());
         env.setParallelism(2);
         //开启CK
         env.enableCheckpointing(10000L, CheckpointingMode.EXACTLY_ONCE);
@@ -96,8 +101,6 @@ public class TaFormat {
         //TODO 5.调用自定义的BroadcastProcessFunction完成数数格式的转换
         SingleOutputStreamOperator<String> resultDS = connectDS.process(new CastProcessFunction(mapStateDescriptor));
 
-        inputFilterDS.print("input:");
-        resultDS.print("result:");
 
         //TODO 6.将处理后的数据发送会kafka，flink1.13.6 kafka source与sink的写法未统一
         FlinkKafkaProducer<String> shushu_test = new FlinkKafkaProducer<>(kafka_brokers, kafka_topic_ta, new SimpleStringSchema());

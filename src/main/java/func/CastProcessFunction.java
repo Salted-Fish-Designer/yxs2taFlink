@@ -69,6 +69,7 @@ public class CastProcessFunction extends BroadcastProcessFunction<String, String
                     castFormat(property, valueJSON, afterKey, controlArray, before_event_name, after_event_name);
                 }
             }
+            resultJson.put("#type","track");
             resultJson.put("properties", property);
         } else {
             System.out.println(before_event_name + "不存在！");
@@ -142,7 +143,7 @@ public class CastProcessFunction extends BroadcastProcessFunction<String, String
                 JSONArray jsonArray = beforeJSON.getJSONArray(beforeKey);
                 jsonObject.put(afterKey, jsonArray);
             } else if ("1".equals(jsonArrayType)) {
-                //此处的 beforeKey 为 {"映射后子列名":["映射前子列名","映射后类型"]}
+                //此处的 beforeKey 格式为 {"映射后子列名":["映射前子列名","映射后类型"]}
                 JSONObject subControlJson = JSON.parseObject(beforeKey);
                 JSONObject subResult = subResultFormat(valueJSON, subControlJson);
                 jsonObject.put(afterKey, subResult);
