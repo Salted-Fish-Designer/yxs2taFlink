@@ -19,7 +19,7 @@ public class MyFlinkCDCDeSer implements DebeziumDeserializationSchema<String> {
      *   "tableName":"ta_configure",
      *   "after":{"id":"123","name":"zs"....},
      *   "before":{"id":"123","name":"zs"....},
-     *   "type":"insert",
+     *   "type":"insert"
      *}
      */
     @Override

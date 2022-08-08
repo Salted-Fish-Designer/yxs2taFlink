@@ -36,27 +36,28 @@ public class CastProcessFunction extends BroadcastProcessFunction<String, String
 
     @Override
     public void processElement(String value, ReadOnlyContext ctx, Collector<String> out) throws Exception {
-        //将kafka中的数据的映射前事件名
+        String ta_conf = "";
+        String after_event_name = "";
+        //创建JSONObject，存储修改后数据
+        JSONObject resultJson = new JSONObject();
+        JSONObject property = new JSONObject();
+
+        //获取源数据及映射前事件名
         JSONObject valueJSON = JSON.parseObject(value);
         String before_event_name = valueJSON.getString("_eventname");
 
-        //获取广播流中的配置信息，remind事件需要特殊处理
+        //获取广播流中的配置信息ta_conf，remind事件需要特殊处理
         ReadOnlyBroadcastState<String, String> broadcastState = ctx.getBroadcastState(mapStateDescriptor);
-        String ta_conf = "";
-        String after_event_name = "";
         if ("seven_day_remind_back".equals(before_event_name) || "sub_seven_day_remind".equals(before_event_name) || "remind_message_sended".equals(before_event_name)) {
             after_event_name = "remind";
             ta_conf = broadcastState.get(after_event_name);
         } else {
             ta_conf = broadcastState.get(before_event_name);
         }
-        JSONObject controlJSON = JSON.parseObject(ta_conf);
 
-        //建立一个新的JSONObject，存储修改后信息
-        JSONObject resultJson = new JSONObject();
-        JSONObject property = new JSONObject();
-
+        //根据获取到的配置信息ta_conf格式化源数据
         if (ta_conf != null) {
+            JSONObject controlJSON = JSON.parseObject(ta_conf);
             //获取映射后的字段名集合
             Set<String> afterKeys = controlJSON.keySet();
             //遍历映射后的字段名，按照数数规则处理格式
@@ -71,11 +72,10 @@ public class CastProcessFunction extends BroadcastProcessFunction<String, String
             }
             resultJson.put("#type","track");
             resultJson.put("properties", property);
+            out.collect(resultJson.toString());
         } else {
             System.out.println(before_event_name + "不存在！");
         }
-
-        out.collect(resultJson.toString());
     }
 
 
