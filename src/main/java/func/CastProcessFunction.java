@@ -73,8 +73,6 @@ public class CastProcessFunction extends BroadcastProcessFunction<String, String
             resultJson.put("#type","track");
             resultJson.put("properties", property);
             out.collect(resultJson.toString());
-        } else {
-            System.out.println(before_event_name + "不存在！");
         }
     }
 
@@ -115,7 +113,8 @@ public class CastProcessFunction extends BroadcastProcessFunction<String, String
         } else if ("Date".equals(afterType)) {
             SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
             Date time = valueJSON.getDate(beforeKey);
-            String afterValue = sdf.format(time);
+            Date date = new Date(time.getTime() - 3600 * 8 * 1000);
+            String afterValue = sdf.format(date);
             jsonObject.put(afterKey, afterValue);
         } else if ("Array".equals(afterType)) {
             //Array有两种格式，一种以','分隔，一种为JSONarray格式
