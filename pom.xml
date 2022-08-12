@@ -11,9 +11,10 @@
     <properties>
         <maven.compiler.source>8</maven.compiler.source>
         <maven.compiler.target>8</maven.compiler.target>
-        <flink.version>1.13.6</flink.version>
+        <flink.version>1.14.5</flink.version>
         <java.version>1.8</java.version>
         <scala.binary.version>2.12</scala.binary.version>
+        <scope.type>compile</scope.type>
     </properties>
 
     <dependencies>
@@ -22,25 +23,25 @@
             <groupId>org.apache.flink</groupId>
             <artifactId>flink-java</artifactId>
             <version>${flink.version}</version>
-<!--            <scope>provided</scope>-->
+            <scope>${scope.type}</scope>
         </dependency>
         <dependency>
             <groupId>org.apache.flink</groupId>
             <artifactId>flink-streaming-java_${scala.binary.version}</artifactId>
             <version>${flink.version}</version>
-<!--            <scope>provided</scope>-->
+            <scope>${scope.type}</scope>
         </dependency>
         <dependency>
             <groupId>org.apache.flink</groupId>
             <artifactId>flink-clients_${scala.binary.version}</artifactId>
             <version>${flink.version}</version>
-<!--            <scope>provided</scope>-->
+            <scope>${scope.type}</scope>
         </dependency>
         <dependency>
             <groupId>org.apache.flink</groupId>
             <artifactId>flink-runtime-web_${scala.binary.version}</artifactId>
             <version>${flink.version}</version>
-<!--            <scope>provided</scope>-->
+            <scope>${scope.type}</scope>
         </dependency>
 
 
@@ -48,45 +49,36 @@
         <dependency>
             <groupId>mysql</groupId>
             <artifactId>mysql-connector-java</artifactId>
-            <version>5.1.49</version>
+            <version>8.0.21</version>
+            <scope>${scope.type}</scope>
         </dependency>
-
         <dependency>
-            <groupId>com.alibaba.ververica</groupId>
-            <artifactId>flink-connector-mysql-cdc</artifactId>
-            <version>1.4.0</version>
+            <groupId>com.ververica</groupId>
+            <artifactId>flink-sql-connector-mysql-cdc</artifactId>
+            <version>2.2.1</version>
+            <scope>${scope.type}</scope>
         </dependency>
-<!--        <dependency>-->
-<!--            <groupId>com.ververica</groupId>-->
-<!--            <artifactId>flink-connector-mysql-cdc</artifactId>-->
-<!--            <version>2.2.1</version>-->
-<!--        </dependency>-->
+        <dependency>
+            <groupId>org.apache.flink</groupId>
+            <artifactId>flink-table-common</artifactId>
+            <version>${flink.version}</version>
+            <scope>${scope.type}</scope>
+        </dependency>
 
         <!--以下是flink连接kafka所需依赖-->
         <dependency>
             <groupId>org.apache.flink</groupId>
             <artifactId>flink-connector-kafka_${scala.binary.version}</artifactId>
             <version>${flink.version}</version>
+            <scope>${scope.type}</scope>
         </dependency>
-        <dependency>
-            <groupId>org.apache.flink</groupId>
-            <artifactId>flink-connector-base</artifactId>
-            <version>${flink.version}</version>
-        </dependency>
-
-        <!--以下是读取配置文件所需依赖-->
-<!--        <dependency>-->
-<!--            <groupId>com.typesafe</groupId>-->
-<!--            <artifactId>config</artifactId>-->
-<!--            <version>1.4.1</version>-->
-<!--        </dependency>-->
 
 
         <!--处理json格式字符串-->
         <dependency>
             <groupId>com.alibaba</groupId>
             <artifactId>fastjson</artifactId>
-            <version> 1.2.70</version>
+            <version>1.2.70</version>
         </dependency>
 
 

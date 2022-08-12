@@ -1,8 +1,8 @@
-import com.alibaba.ververica.cdc.connectors.mysql.MySQLSource;
-import com.alibaba.ververica.cdc.connectors.mysql.table.StartupOptions;
-import com.alibaba.ververica.cdc.debezium.DebeziumSourceFunction;
+
+import com.ververica.cdc.connectors.mysql.source.MySqlSource;
+import com.ververica.cdc.connectors.mysql.table.StartupOptions;
+import com.ververica.cdc.debezium.JsonDebeziumDeserializationSchema;
 import func.CastProcessFunction;
-import func.MyFlinkCDCDeSer;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.common.serialization.SimpleStringSchema;
@@ -78,7 +78,7 @@ public class TaFormat {
         });
 
         //通过FlinkCDC读取MySQL，创建控制流controlDS
-        DebeziumSourceFunction<String> mySQLSource = MySQLSource.<String>builder()
+        MySqlSource<String> mySqlSource = MySqlSource.<String>builder()
                 .hostname(mysql_host)
                 .port(Integer.parseInt(mysql_port))
                 .username(mysql_username)
@@ -86,9 +86,9 @@ public class TaFormat {
                 .databaseList(mysql_databaseList)
                 .tableList(mysql_tableList)
                 .startupOptions(StartupOptions.initial())
-                .deserializer(new MyFlinkCDCDeSer())
+                .deserializer(new JsonDebeziumDeserializationSchema())
                 .build();
-        DataStreamSource<String> controlDS = env.addSource(mySQLSource);
+        DataStreamSource<String> controlDS = env.fromSource(mySqlSource, WatermarkStrategy.noWatermarks(), "MySQL Source");
 
         //TODO 3.创建状态描述器，把控制流广播出去
         MapStateDescriptor<String, String> mapStateDescriptor = new MapStateDescriptor<>("boradcast-state", Types.STRING, Types.STRING);
