@@ -9,12 +9,14 @@ import org.apache.flink.api.common.serialization.SimpleStringSchema;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.utils.ParameterTool;
+import org.apache.flink.connector.base.DeliveryGuarantee;
+import org.apache.flink.connector.kafka.sink.KafkaRecordSerializationSchema;
+import org.apache.flink.connector.kafka.sink.KafkaSink;
 import org.apache.flink.connector.kafka.source.KafkaSource;
 import org.apache.flink.connector.kafka.source.enumerator.initializer.OffsetsInitializer;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.datastream.*;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer;
 
 import java.io.IOException;
 import java.util.Properties;
@@ -100,10 +102,17 @@ public class TaFormat {
         //TODO 5.调用自定义的BroadcastProcessFunction完成数数格式的转换
         SingleOutputStreamOperator<String> resultDS = connectDS.process(new CastProcessFunction(mapStateDescriptor));
 
-
-        //TODO 6.将处理后的数据发送会kafka，flink1.13.6 kafka source与sink的写法未统一
-        FlinkKafkaProducer<String> shushu_test = new FlinkKafkaProducer<>(kafka_brokers, kafka_topic_ta, new SimpleStringSchema());
-        resultDS.addSink(shushu_test);
+        //TODO 6.将处理后的数据发送会kafka
+        KafkaSink<String> kafkaSink = KafkaSink.<String>builder()
+                .setBootstrapServers(kafka_brokers)
+                .setRecordSerializer(KafkaRecordSerializationSchema.builder()
+                        .setTopic(kafka_topic_ta)
+                        .setValueSerializationSchema(new SimpleStringSchema())
+                        .build()
+                )
+                .setDeliverGuarantee(DeliveryGuarantee.AT_LEAST_ONCE)
+                .build();
+        resultDS.sinkTo(kafkaSink);
 
         try {
             env.execute();

@@ -29,9 +29,11 @@ public class CastProcessFunction extends BroadcastProcessFunction<String, String
         //将事件名作为key put进广播状态中。后续提取时，对应提取相应事件名的配置。
         JSONObject jsonObject = JSON.parseObject(value);
         JSONObject after = jsonObject.getJSONObject("after");
-        String event_name = after.getString("event_name");
-        String ta_format = after.getString("ta_format");
-        broadcastState.put(event_name, ta_format);
+        if (after != null){
+            String event_name = after.getString("event_name");
+            String ta_format = after.getString("ta_format");
+            broadcastState.put(event_name, ta_format);
+        }
     }
 
     @Override
