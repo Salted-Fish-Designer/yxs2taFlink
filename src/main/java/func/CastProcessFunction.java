@@ -101,6 +101,9 @@ public class CastProcessFunction extends BroadcastProcessFunction<String, String
             } else {
                 //按指定类型提取字段值
                 String afterValue = valueJSON.getString(beforeKey);
+                if (afterValue!=null && afterValue.length() >= 2048){
+                    afterValue= afterValue.substring(0,2000);
+                }
                 //将处理后的k,v输入新的JSON中
                 jsonObject.put(afterKey, afterValue);
             }
