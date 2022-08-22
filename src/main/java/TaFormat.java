@@ -55,7 +55,7 @@ public class TaFormat {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         //本地开启WebUI使用环境
 //        StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironmentWithWebUI(new Configuration());
-        env.setParallelism(2);
+//        env.setParallelism(2);
         //开启CK
         env.enableCheckpointing(60000L, CheckpointingMode.EXACTLY_ONCE);
         env.getCheckpointConfig().setCheckpointTimeout(60000L);
